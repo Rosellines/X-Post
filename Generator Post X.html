@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Twitter Post Generator — Dark Orange</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0d10; --panel:#0f1316; --muted:#9aa2a8; --accent:#ff7a18; --glass: rgba(255,255,255,0.03);
+      --radius:12px; --gap:14px; --maxw:1300px; --card-pad:18px;
+    }
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#060607 0%, #0b0d10 100%);color:#e6eef3;display:flex;align-items:flex-start;justify-content:center;padding:36px}
+
+    /* App layout */
+    .app{width:100%;max-width:var(--maxw);display:grid;grid-template-columns:560px 1fr;gap:24px}
+    .card{background:var(--panel);border-radius:var(--radius);padding:var(--card-pad);box-shadow:0 6px 30px rgba(0,0,0,0.6);}
+
+    /* Header */
+    .brand{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#ffb07a);display:flex;align-items:center;justify-content:center;color:#081018;font-weight:700}
+    h1{margin:0 0 6px;font-size:18px}
+    .muted{color:var(--muted);font-size:13px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+
+    /* Inputs */
+    input[type=text], textarea, select{width:100%;background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:10px;border-radius:10px;font-size:14px}
+    textarea{min-height:96px;resize:vertical;padding-top:12px}
+    .row{display:flex;gap:10px}
+    .btn{background:linear-gradient(180deg,var(--accent), #ff5b00);border:none;color:#081018;padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--accent)}
+    .small{font-size:13px;padding:8px 10px}
+    .small-muted{font-size:13px;color:var(--muted)}
+    .field{margin-bottom:12px}
+    .right-actions{display:flex;gap:8px;align-items:center}
+    .switch{display:inline-flex;align-items:center;gap:8px}
+    .tag{display:inline-block;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:13px}
+
+    /* output */
+    .output{white-space:pre-wrap;font-size:15px;line-height:1.45;padding:14px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));min-height:120px}
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+    .score{display:flex;gap:10px;align-items:center}
+    .progress{height:8px;background:rgba(255,255,255,0.06);border-radius:999px;overflow:hidden;width:160px}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#ffb07a);}
+
+    /* extra UI improvements */
+    .subtle {font-size:13px;color:var(--muted);}
+    .divider{height:1px;background:rgba(255,255,255,0.03);margin:12px 0;border-radius:2px}
+    .controls-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .badge{font-size:12px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02);display:inline-block}
+
+    /* responsive */
+    @media (max-width:1000px){.app{grid-template-columns:1fr} .controls-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- left panel: inputs -->
+    <div class="card">
+      <div class="brand">
+        <div class="logo">TX</div>
+        <div>
+          <h1>Twitter Post Generator</h1>
+          <div class="subtle">Isi parameter — tekan <span class="tag">Generate</span> untuk membuat postingan. API Key disimpan di localStorage jika klik "Save API Key".</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Provider</label>
+        <select id="provider">
+          <option value="openai">OpenAI (ChatGPT)</option>
+          <option value="gemini">Gemini (Google)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>1. Nama project</label>
+        <input id="projectName" type="text" placeholder="Contoh: TinyDeploy" />
+      </div>
+
+      <div class="field">
+        <label>2. Deskripsi project <span class="muted">(optional)</span></label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <textarea id="projectDesc" placeholder="Deskripsikan singkat project (opsional)"></textarea>
+          <div style="width:92px;display:flex;flex-direction:column;gap:8px">
+            <button class="btn small" id="genDesc">Generate Deskripsi</button>
+            <button class="btn secondary small" id="clearDesc">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>3. Mention (pisah koma)</label>
+        <input id="mention" type="text" placeholder="contoh: @user1, @org" />
+      </div>
+
+      <div class="field">
+        <label>4. Hashtag (pisah spasi atau koma) <span class="muted">(optional)</span></label>
+        <input id="hashtags" type="text" placeholder="#startup #indiehacker" />
+      </div>
+
+      <div class="field row" style="align-items:center">
+        <div style="flex:1">
+          <label>5. Pilihan: Post atau Thread</label>
+          <select id="postType">
+            <option value="post">Post (single)</option>
+            <option value="thread">Thread</option>
+          </select>
+        </div>
+        <div style="width:18px"></div>
+        <div style="flex:1">
+          <label>6. Mode karakter</label>
+          <select id="modeChar">
+            <option value="nonpremium">Non Premium — 280 karakter</option>
+            <option value="premium">Premium — up to 25,000 karakter</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>7. Prompt relevan & anti-halusinasi (otomatis ditambahkan)</label>
+        <div class="small-muted">Assistant akan selalu diberi instruksi untuk tidak berhalusinasi, verifikasi fakta, dan tulis bahasa sehari-hari.</div>
+      </div>
+
+      <div class="field">
+        <label>8. Scoring & Insight (akan tampil pada hasil)</label>
+        <div class="small-muted">Skor dihitung otomatis berdasarkan panjang, keterbacaan, CTA, dan potensi klaim faktual.</div>
+      </div>
+
+      <div class="field">
+        <label>9. Default Prompt (wajib ada)</label>
+        <textarea id="defaultPrompt">Berperan sebagai indiehacker yang suka nyambung obrolan sama sesama maker di X. Tone-nya personal banget, santai, dan relate biar orang yang baca kepo sama profilmu. buat post tweet dalam 5-7 kalimat aja namun wajib high quality, organic, manusiawi, tidak seperti AI, mengandung insight, opini, relevan, anti halusinasi dan gunakan bahasa sehari hari. tutup kalimat dengan call to action</textarea>
+      </div>
+
+      <div class="field">
+        <label>Mindshare — Strength</label>
+        <div class="controls-grid">
+          <select id="mindshareLevel">
+            <option value="balanced">Balanced (natural, organic)</option>
+            <option value="strong">Strong Mindshare (make it punchy, memorable, one-liner hooks)</option>
+            <option value="sticky">Sticky + Repeatable (include short, repeatable phrases)</option>
+          </select>
+          <div>
+            <label style="font-size:12px;color:var(--muted)">Tone tweak</label>
+            <select id="toneTweak">
+              <option value="default">Default</option>
+              <option value="opinionated">Opinionated</option>
+              <option value="curious">Curious / Question-driven</option>
+            </select>
+          </div>
+        </div>
+        <div class="subtle" style="margin-top:6px">Pilih level mindshare — ini akan otomatis menambahkan instruksi ke prompt akhir.</div>
+      </div>
+
+      <div class="field">
+        <label>10. Prompt tambahan <span class="muted">(opsional)</span></label>
+        <input id="extraPrompt" type="text" placeholder="Tambahkan instruksi kecil jika perlu" />
+      </div>
+
+      <div class="field">
+        <label>11. API Key OpenAI</label>
+        <input id="apiKeyOpenAI" type="text" placeholder="sk-..." />
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" id="saveApiOpenAI">Save OpenAI Key</button>
+          <button class="btn secondary" id="clearApiOpenAI">Clear Key</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>12. API Key Gemini (Google)</label>
+        <input id="apiKeyGemini" type="text" placeholder="AIza..." />
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" id="saveApiGemini">Save Gemini Key</button>
+          <button class="btn secondary" id="clearApiGemini">Clear Key</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn" id="generate">Generate</button>
+        <button class="btn secondary" id="saveConfig">Save Config</button>
+        <button class="btn secondary" id="loadConfig">Load Config</button>
+      </div>
+
+      <div class="field foot">
+        <div class="small-muted">Tips: Simpan API key hanya di perangkat pribadi. Aplikasi ini menyimpan di localStorage.</div>
+      </div>
+    </div>
+
+    <!-- right panel: output -->
+    <div class="card">
+      <h1>Hasil Generate</h1>
+      <div class="field">
+        <label>Hasil</label>
+        <div id="output" class="output">Belum ada hasil. Tekan "Generate" untuk membuat postingan.</div>
+      </div>
+
+      <div class="meta">
+        <div class="score">
+          <div class="small-muted">Score:</div>
+          <div class="progress" title="Skor kualitas">
+            <i id="progBar" style="width:0%"></i>
+          </div>
+          <div id="scoreVal" class="tag">0</div>
+        </div>
+        <div class="right-actions">
+          <button class="btn small" id="copyBtn">Copy</button>
+          <button class="btn small secondary" id="toId">Translate → ID</button>
+          <button class="btn small secondary" id="toEn">Translate → EN</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Insight & Analisa</label>
+        <div id="insight" class="output" style="min-height:80px">Tidak ada insight.</div>
+      </div>
+
+      <div class="field">
+        <label>Debug / Raw</label>
+        <textarea id="raw" style="min-height:80px"></textarea>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // --- Utilities ---
+    const $ = id => document.getElementById(id);
+    function saveToLS(key, v){localStorage.setItem(key, JSON.stringify(v));}
+    function loadFromLS(key){try{return JSON.parse(localStorage.getItem(key));}catch(e){return null}}
+
+    // Restore saved API keys if present
+    const savedOpen = loadFromLS('twgen_api_key_openai');
+    if(savedOpen) $('apiKeyOpenAI').value = savedOpen;
+    const savedGemini = loadFromLS('twgen_api_key_gemini');
+    if(savedGemini) $('apiKeyGemini').value = savedGemini;
+
+    // Save / clear API keys
+    $('saveApiOpenAI').addEventListener('click', ()=>{ const k=$('apiKeyOpenAI').value.trim(); if(!k){alert('Masukkan OpenAI API Key dulu.');return} saveToLS('twgen_api_key_openai', k); alert('OpenAI API Key disimpan di localStorage (perangkat ini).'); });
+    $('clearApiOpenAI').addEventListener('click', ()=>{localStorage.removeItem('twgen_api_key_openai');$('apiKeyOpenAI').value='';alert('OpenAI API Key dihapus.')});
+
+    $('saveApiGemini').addEventListener('click', ()=>{ const k=$('apiKeyGemini').value.trim(); if(!k){alert('Masukkan Gemini API Key dulu.');return} saveToLS('twgen_api_key_gemini', k); alert('Gemini API Key disimpan di localStorage (perangkat ini).'); });
+    $('clearApiGemini').addEventListener('click', ()=>{localStorage.removeItem('twgen_api_key_gemini');$('apiKeyGemini').value='';alert('Gemini API Key dihapus.')});
+
+    // Generate description button - uses selected provider key
+    $('genDesc').addEventListener('click', async ()=>{
+      const provider = $('provider').value;
+      const apiKey = provider === 'gemini' ? ($('apiKeyGemini').value.trim() || loadFromLS('twgen_api_key_gemini')) : ($('apiKeyOpenAI').value.trim() || loadFromLS('twgen_api_key_openai'));
+      const name = $('projectName').value.trim();
+      if(!apiKey){alert('Butuh API Key untuk generate deskripsi. Simpan dulu.');return}
+      const base = name ? `Buat deskripsi singkat (1-2 kalimat) untuk project bernama "${name}". Jelaskan manfaat utama dan target pengguna.` : 'Buat deskripsi singkat (1-2 kalimat) untuk project indie startup. Jelaskan manfaat utama.';
+      setBusy(true, 'Generating description...');
+      try{
+        const system = {role:'system',content:'Kamu asisten singkat untuk membuat deskripsi project.'};
+        const user = {role:'user',content:base};
+        let res;
+        if(provider === 'gemini') res = await geminiChat(apiKey, [system,user], {max_tokens:120});
+        else res = await openaiChat(apiKey, [system,user], {max_tokens:120});
+        const txt = res?.choices?.[0]?.message?.content?.trim();
+        if(txt) $('projectDesc').value = txt;
+        $('raw').value = JSON.stringify(res,null,2);
+      }catch(e){alert('Gagal generate deskripsi: '+(e.message||e));}
+      setBusy(false);
+    });
+
+    // Save / load config
+    $('saveConfig').addEventListener('click', ()=>{
+      const cfg = {
+        provider: $('provider').value,
+        projectName: $('projectName').value,
+        projectDesc: $('projectDesc').value,
+        mention: $('mention').value,
+        hashtags: $('hashtags').value,
+        postType: $('postType').value,
+        modeChar: $('modeChar').value,
+        defaultPrompt: $('defaultPrompt').value,
+        extraPrompt: $('extraPrompt').value,
+        mindshareLevel: $('mindshareLevel').value,
+        toneTweak: $('toneTweak').value
+      };
+      saveToLS('twgen_config', cfg);
+      alert('Config disimpan.');
+    });
+    $('loadConfig').addEventListener('click', ()=>{
+      const cfg = loadFromLS('twgen_config');
+      if(!cfg){alert('Tidak ada config tersimpan.');return}
+      $('provider').value = cfg.provider || 'openai';
+      $('projectName').value = cfg.projectName||'';
+      $('projectDesc').value = cfg.projectDesc||'';
+      $('mention').value = cfg.mention||'';
+      $('hashtags').value = cfg.hashtags||'';
+      $('postType').value = cfg.postType||'post';
+      $('modeChar').value = cfg.modeChar||'nonpremium';
+      $('defaultPrompt').value = cfg.defaultPrompt||$('defaultPrompt').value;
+      $('extraPrompt').value = cfg.extraPrompt||'';
+      $('mindshareLevel').value = cfg.mindshareLevel||'balanced';
+      $('toneTweak').value = cfg.toneTweak||'default';
+      alert('Config dimuat.');
+    });
+
+    // Generate button
+    $('generate').addEventListener('click', async ()=>{
+      const provider = $('provider').value;
+      const apiKey = provider === 'gemini' ? ($('apiKeyGemini').value.trim() || loadFromLS('twgen_api_key_gemini')) : ($('apiKeyOpenAI').value.trim() || loadFromLS('twgen_api_key_openai'));
+      if(!apiKey){ if(!confirm('Tidak ada API key untuk provider terpilih. Mau generate lokal (mock) saja? Tekan OK untuk mock, Cancel untuk batalkan.')){return} }
+      const params = collectParams();
+      setBusy(true,'Generating post...');
+      try{
+        let outputText;
+        if(apiKey){
+          const system = {role:'system', content: 'You are a helpful assistant that writes natural, human, non-AI-sounding Twitter/X posts. Do not hallucinate facts. If you must mention facts, mark them as needs-verification. Keep tone personal, informal, insightful.'};
+          const userPrompt = buildFinalPrompt(params);
+          const messages = [system,{role:'user',content:userPrompt}];
+          const max_tokens = params.modeChar === 'premium' ? 8000 : 600; // rough mapping
+          let res;
+          if(provider === 'gemini'){
+            res = await geminiChat(apiKey, messages, {max_tokens});
+          } else {
+            res = await openaiChat(apiKey, messages, {max_tokens});
+          }
+          outputText = res?.choices?.[0]?.message?.content?.trim() || '';
+          $('raw').value = JSON.stringify(res,null,2);
+        } else {
+          // fallback mock generator (no API)
+          outputText = mockGenerate(params);
+          $('raw').value = 'No API key: mock output.';
+        }
+        // enforce character limits
+        if(params.modeChar === 'nonpremium' && outputText.length>280){
+          outputText = outputText.slice(0,277)+"...";
+        }
+        // if thread requested and API provided example: if thread, split into tweets
+        if(params.postType === 'thread'){
+          outputText = splitIntoThread(outputText, params.modeChar === 'nonpremium' ? 280 : 25000);
+        }
+
+        renderOutput(outputText);
+      }catch(e){alert('Gagal generate: '+(e.message||e));
+      } finally{setBusy(false)}
+    });
+
+    // Copy button
+    $('copyBtn').addEventListener('click', ()=>{
+      const txt = $('output').innerText;
+      navigator.clipboard.writeText(txt).then(()=>alert('Copied to clipboard'));
+    });
+
+    // Translate buttons
+    $('toId').addEventListener('click', ()=>translateOutput('id'));
+    $('toEn').addEventListener('click', ()=>translateOutput('en'));
+
+    // Helpers
+    function collectParams(){
+      return {
+        provider: $('provider').value,
+        projectName: $('projectName').value.trim(),
+        projectDesc: $('projectDesc').value.trim(),
+        mention: $('mention').value.trim().split(',').map(m => m.trim()).filter(m => m).join(' '),
+        hashtags: $('hashtags').value.trim(),
+        postType: $('postType').value,
+        modeChar: $('modeChar').value,
+        defaultPrompt: $('defaultPrompt').value,
+        extraPrompt: $('extraPrompt').value,
+        mindshareLevel: $('mindshareLevel').value,
+        toneTweak: $('toneTweak').value
+      }
+    }
+
+    function buildFinalPrompt(p){
+      // Merge all inputs into a single prompt for the model, include anti-hallucination guard.
+      const parts = [];
+      parts.push(p.defaultPrompt);
+      if(p.extraPrompt) parts.push(p.extraPrompt);
+      if(p.projectName) parts.push(`Project name: ${p.projectName}`);
+      if(p.projectDesc) parts.push(`Project description: ${p.projectDesc}`);
+      if(p.mention) parts.push(`Mention: ${p.mention}`);
+      if(p.hashtags) parts.push(`Hashtags: ${p.hashtags}`);
+
+      // Mindshare injection: keep changes scoped to prompt building only
+      if(p.mindshareLevel === 'strong'){
+        parts.push('Mindshare instruction: Buat postingan yang punchy dan memorable — gunakan hook pembuka yang kuat (1-2 kata atau kalimat pendek), gunakan analogi sederhana atau kontra-intuitif, buat satu insight utama yang mudah diingat. Buat pembaca ingin mengulang atau membagikan (share).');
+      } else if(p.mindshareLevel === 'sticky'){
+        parts.push('Mindshare instruction: Buat frasa singkat yang mudah diingat (repeatable phrase), ulangi gagasan inti dalam 1-2 short lines, tambahkan call-to-action yang mengundang interaksi (reply/share).');
+      } else {
+        parts.push('Mindshare instruction: Tetap natural dan organik — tambahkan satu insight yang relevan dan singkat untuk meningkatkan daya ingat pembaca.');
+      }
+
+      // Tone tweak
+      if(p.toneTweak === 'opinionated') parts.push('Tone tweak: Jadilah tegas dan opiniatif — gunakan kalimat yang menunjukkan pendapat pribadi dan pengalaman.');
+      if(p.toneTweak === 'curious') parts.push('Tone tweak: Gunakan gaya bertanya/curious — ajukan satu atau dua pertanyaan retoris untuk meningkatkan keterlibatan.');
+
+      parts.push('Wajib: tidak berhalusinasi — jika materi fakta disebutkan, tandai dengan "[verify]" dan jelaskan jika perlu bahwa klaim perlu diverifikasi. Tuliskan call to action di akhir. Gunakan bahasa sehari-hari (Bahasa Indonesia) kecuali ada instruksi lain. Jika diminta thread, bagi jadi beberapa tweets pendek, tiap tweet kurang dari 280 karakter jika mode nonpremium. Buat nada: personal, santai, dan relate. Jika ada mention yang diberikan, sertakan dalam postingan. Jika ada hashtag, sertakan juga.');
+
+      // Also ask the model to return a short JSON with "content" and "insight" and "claims" so we can parse.
+      parts.push('Response format: Pertama tampilkan postingan (plain text). Setelah itu, sertakan JSON ringkas di baris baru yang berisi {"insight": "short insight","claims": [list of possible factual claims], "cta_present": true/false}');
+      return parts.join('\n\n');
+    }
+
+    function mockGenerate(p){
+      // Very simple mock to allow offline demo
+      const base = p.projectName ? `${p.projectName} — ${p.projectDesc||'mini tool'}` : 'A project';
+      const mentions = p.mention ? '\nMentions: '+p.mention : '';
+      const tags = p.hashtags ? '\nTags: '+p.hashtags : '';
+      const txt = `Baru aja ngerilis ${p.projectName || 'produk baru'}. Ini buat orang yang pengen cepat iterate: ${p.projectDesc || 'buat hal X dengan lebih cepat.'} Cerita singkat karena belajar dari proses, bukan fitur. Ping me kalau mau coba! ${p.mention ? p.mention.split(',')[0] : ''} ${p.hashtags}`;
+      return txt;
+    }
+
+    function splitIntoThread(text, limit){
+      // naive split on sentences
+      const sents = text.match(/[^.!?]+[.!?]?/g) || [text];
+      const tweets = [];
+      let cur = '';
+      sents.forEach(s=>{
+        if((cur + s).length <= limit) cur += s;
+        else { tweets.push(cur.trim()); cur = s; }
+      });
+      if(cur.trim()) tweets.push(cur.trim());
+      return tweets.join('\n\n—\n\n');
+    }
+
+    function renderOutput(out){
+      if(Array.isArray(out)) out = out.join('\n\n');
+      $('output').innerText = out;
+      // compute score & insights
+      const analysis = analyzeText(out);
+      $('scoreVal').innerText = analysis.score;
+      $('progBar').style.width = analysis.score + '%';
+      $('insight').innerText = analysis.insightText;
+    }
+
+    function analyzeText(txt){
+      const plain = txt.replace(/\n/g,' ');
+      const charCount = plain.length;
+      const sentences = (plain.match(/[.!?]+/g)||[]).length || 1;
+      const avgSentLen = Math.max(1, Math.round(charCount / sentences));
+      const hasCTA = /(cek|lihat|kunjungi|ping|reply|dm|hubungi|try|coba|sign up|daftar|follow|kunjungi)/i.test(plain);
+      const mentions = (txt.match(/@\w+/g)||[]).length;
+      const hashtags = (txt.match(/#\w+/g)||[]).length;
+      const factualClaims = [];
+      // detect things that look like facts that should be verified: dates, years, percents, numbers with units
+      const claimMatches = txt.match(/\b(\d{4}|\d+%|\d+\s?(orang|users|user|k|rb|jt|m|M|%))\b/gi) || [];
+      claimMatches.forEach(m=>{ if(!factualClaims.includes(m)) factualClaims.push(m) });
+
+      // heuristics
+      let score = 50;
+      // length: ideal for tweets ~ 80-240 chars -> bump
+      if(charCount>=80 && charCount<=240) score += 18;
+      else if(charCount<80) score -= 6; else if(charCount>280) score -= 10;
+      // sentence length
+      if(avgSentLen < 140) score += 8; else score -= 6;
+      // CTA
+      if(hasCTA) score += 10;
+      // mentions/hashtags: slight boost
+      score += Math.min(8, mentions*3 + hashtags*2);
+      // penalize many unverified claims
+      if(factualClaims.length>0) score -= Math.min(20, factualClaims.length*6);
+      // clamp
+      score = Math.max(6, Math.min(98, Math.round(score)));
+
+      // build insight text
+      const insight = [];
+      insight.push(`Karakter: ${charCount}. Kalimat: ${sentences}. Rata-rata panjang kalimat: ${avgSentLen} karakter.`);
+      insight.push(hasCTA ? 'CTA terdeteksi — bagus untuk engagement.' : 'Tidak ada CTA — pertimbangkan untuk menambahkan call-to-action akhir.' );
+      if(mentions) insight.push(`Ada ${mentions} mention(s).`);
+      if(hashtags) insight.push(`Ada ${hashtags} hashtag(s).`);
+      if(factualClaims.length) insight.push(`Potensi klaim faktual yang perlu verifikasi: ${factualClaims.join(', ')}.`);
+      insight.push('Saran: Pastikan klaim difaktakan atau tandai dengan [verify]. Jaga nada personal & singkat.');
+
+      return {score, insightText: insight.join('\n'), claims: factualClaims};
+    }
+
+    async function translateOutput(lang){
+      const provider = $('provider').value;
+      const apiKey = provider === 'gemini' ? ($('apiKeyGemini').value.trim() || loadFromLS('twgen_api_key_gemini')) : ($('apiKeyOpenAI').value.trim() || loadFromLS('twgen_api_key_openai'));
+      if(!apiKey){alert('Butuh API key untuk translate via provider terpilih.');return}
+      const src = $('output').innerText;
+      if(!src) {alert('Belum ada output.');return}
+      setBusy(true,'Translating...');
+      try{
+        const sys = {role:'system', content:'You are a helpful translator.'};
+        const user = {role:'user', content:`Translate the following text to ${lang === 'id' ? 'Indonesian' : 'English'}. Preserve mentions and hashtags. Keep tone similar and concise.\n\nText:\n${src}`};
+        let res;
+        if(provider === 'gemini') res = await geminiChat(apiKey, [sys,user], {max_tokens:800});
+        else res = await openaiChat(apiKey, [sys,user], {max_tokens:800});
+        const txt = res?.choices?.[0]?.message?.content?.trim();
+        if(txt) renderOutput(txt);
+        $('raw').value = JSON.stringify(res,null,2);
+      }catch(e){alert('Translate failed: '+(e.message||e))}
+      setBusy(false);
+    }
+
+    // Minimal OpenAI Chat wrapper (works with v1/chat/completions)
+    async function openaiChat(apiKey, messages, opts={}){
+      const model = opts.model || 'gpt-4o-mini';
+      const body = {model, messages, max_tokens: opts.max_tokens || 512, temperature: opts.temperature || 0.7};
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey}, body:JSON.stringify(body)
+      });
+      if(!res.ok){
+        const t = await res.text(); throw new Error('OpenAI error: '+res.status+' '+t);
+      }
+      return res.json();
+    }
+
+    // Minimal Grok / xAI Chat wrapper (calls xAI REST API - Chat Completions)
+    // Docs: xAI API uses Authorization: Bearer <key> and base https://api.x.ai (see docs)
+    async function grokChat(apiKey, messages, opts={}){
+      // Use xAI chat completions endpoint. Model parameter might differ; let user/params control via opts.model
+      const model = opts.model || 'grok-4'; // keep a sensible default; user may change
+      const body = {model, messages, max_tokens: opts.max_tokens || 512, temperature: opts.temperature || 0.7};
+      const res = await fetch('https://api.x.ai/v1/chat/completions', {
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey}, body:JSON.stringify(body)
+      });
+      if(!res.ok){
+        const t = await res.text(); throw new Error('Grok (xAI) error: '+res.status+' '+t);
+      }
+      return res.json();
+    }
+
+    function setBusy(on, text){
+      const btn = $('generate');
+      if(on){btn.disabled=true; btn.innerText = text || 'Processing...';}
+      else {btn.disabled=false; btn.innerText = 'Generate';}
+    }
+
+    // initial sample
+    renderOutput('Belum ada hasil. Tekan "Generate" untuk membuat postingan.');
+  </script>
+</body>
+</html>
